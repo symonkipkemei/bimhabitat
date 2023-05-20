@@ -65,11 +65,15 @@ from Autodesk.Revit.DB import *
 from Autodesk.Revit.DB import Transaction, Element, ElementId, FilteredElementCollector
 
 # pyrevit
-from pyrevit import revit,forms
+from pyrevit import coreutils
+from pyrevit import script
+from pyrevit import revit as rvt
+from pyrevit import framework
+from pyrevit import forms
 
 # custom imports (from our native library)
 #from libi.snippets._selection import get_selected_elements
-from libi.snippets._convert import convert_Internal_to_m
+#from libi.snippets._convert import convert_Internal_to_m
 
 
 #.NET imports ( I have no idea why I am importing this)
@@ -90,13 +94,13 @@ from System.Collections.Generic import List #List<ElementType>() <-it's special 
 #Variables ( variables should be abstracted from __revit__)
 
 
-doc    = __revit__.ActiveUIDocumnet.Document
-uidoc = __revit__.ActiveUIDocument
-app = __revit__.Application
+doc    = rvt.doc
+uidoc = rvt.uidoc
+app = rvt.HOST_APP
 PATH_SCRIPT = os.path.dirname(__file__)
 
-symbol_start = "["
-symbol_end = "]"
+symbol_start = " "
+symbol_end = " "
 
 
 #FUNCTION AND CLASSES
@@ -111,38 +115,37 @@ symbol_end = "]"
 ################################################################
 
 
-
-
 # Get all levels, they are constrained to read in feet, we are going to convert into mm
 
 all_levels = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Levels).WhereElementIsNotElementType().ToElements()
 pprint(all_levels)
 # Determine elevation heights
 
-for lvl in all_levels:
-    lvl_elevation = lvl.Elevation
-    lvl_elevation_m = round(convert_Internal_to_m(lvl_elevation), 2)
-    lvl_elevation_m_str = "+" + str(lvl_elevation_m) if lvl_elevation > 0 else str(lvl_elevation_m)
-
-
-
-#TODO ELEVATION EXISTS (update)
-
-
-# Elevation does not exist(new)
-elevation_value = symbol_start + lvl_elevation_m_str + symbol_end
-new_name = lvl.Name + elevation_value
-
-
 #run the changes
 t = Transaction(doc, __title__)
 t.Start()
-try:
-    lvl.Name = new_name
-except:
-    print("Could not change level's name")
 
-t.commit
+for lvl in all_levels:
+    lvl_elevation = lvl.Elevation
+    
+    lvl_elevation_m = int(lvl_elevation) * 304.8
+    lvl_elevation_m_str = "+" + str(lvl_elevation_m) if lvl_elevation > 0 else str(lvl_elevation_m)
+
+    #TODO ELEVATION EXISTS (update)
+
+    # Elevation does not exist(new)
+    elevation_value = symbol_start + lvl_elevation_m_str + symbol_end
+    new_name = lvl.Name + elevation_value
+
+    
+    try:
+        lvl.Name = new_name
+    except Exception as e:
+        print("Could not change level's name, due to {}".format(e))
+
+
+t.Commit()
+
     
 
 
